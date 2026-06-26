@@ -1,15 +1,16 @@
 {
-	"token": "<token here>",
-	"prefix": "!",
-	"room_size": 12,
-	"max_room_size": 15,
+	"token": "insert token here",
+	"prefix": "/",
+	"room_size": 24,
+	"max_room_size": 24,
 	"normal_message_delete_rate": 5000,
 	"long_message_delete_rate": 10000,
 	"inactive_message_delete_rate": 300000,
 	"inactive_message_after": 1500000,
 	"remove_from_mogi_after": 1800000,
+	"ping_here_after": 300000,
 	"inactive_check_rate": 60000,
 	"minimum_uptime": 86400000,
-	"minimum_time_to_end_after_full": 2400000,
-	"owner": "<discordId here>"
+	"minimum_time_to_end_after_full": 5000,
+	"owner": "insert owner ID here"
 }

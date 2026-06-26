@@ -1,0 +1,25 @@
+{
+  "name": "mogibot",
+  "version": "1.0.0",
+  "description": "MogiBot was originally written using [NodeJS](https://nodejs.org) and [DiscordJs](https://discord.js.org). This is the original source, which people can use to learn or modify for their own purposes.",
+  "main": "mogibot.js",
+  "scripts": {
+    "start": "node mogibot.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/255MP/mogibot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/255MP/mogibot/issues"
+  },
+  "homepage": "https://github.com/255MP/mogibot#readme",
+  "dependencies": {
+    "discord.js": "^14.26.4"
+  }
+}

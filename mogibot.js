@@ -7,19 +7,28 @@
 
 const Discord = require('discord.js');
 const fs = require('fs')
+const path = require('path');
 const config = require('./config.json');
-const client = new Discord.Client();
-client.commands = new Discord.Collection();
+const { GatewayIntentBits, Collection } = Discord;
+const client = new Discord.Client({
+	intents: [
+		GatewayIntentBits.Guilds,
+		GatewayIntentBits.GuildMessages,
+		GatewayIntentBits.GuildMembers,
+		GatewayIntentBits.MessageContent
+	]
+});
+client.slashCommands = new Collection();
 client.config = config
 
-const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+const slashCommandFiles = fs.readdirSync(path.join(__dirname, 'slashCommands')).filter(file => file.endsWith('.js'));
+const slashCommandDefinitions = [];
 
-for (const file of commandFiles) {
-	const command = require(`./commands/${file}`);
-	client.commands.set(command.name, command);
+for (const file of slashCommandFiles) {
+	const command = require(path.join(__dirname, 'slashCommands', file));
+	client.slashCommands.set(command.data.name, command);
+	slashCommandDefinitions.push(command.data.toJSON());
 }
-
-const cooldowns = new Discord.Collection();
 
 const roomSizeHalf = Math.floor(config.room_size / 2);
 
@@ -42,6 +51,8 @@ function Mogi()
 	this.isRoomAlmostFullSet = false,
 	this.isRoomFullSet = false,
 	this.dateFull = null,
+	this.startTime = null,
+	this.hasPingedHere = false,
 	this.players = new Discord.Collection(),
 	this.notification = new Discord.Collection();
 }
@@ -95,8 +106,6 @@ function hasRole(message)
 	return hasRoleName(message, 'MogiBot') ||
 			hasRoleName(message, 'Updater') ||
 			hasRoleName(message, 'Updaters') ||
-			hasRoleName(message, 'Reporter') ||
-			hasRoleName(message, 'Reporters') ||
 			hasRoleName(message, 'Bronze Arbitrator') ||
 			hasRoleName(message, 'Gold Arbitrator') ||
 			hasRoleName(message, 'Diamond Arbitrator') ||
@@ -113,10 +122,12 @@ function hasRole(message)
 
 function hasRoleName(message, name)
 {
-	var mogirole = message.guild.roles.find("name", name);
+	var mogirole = message.guild && message.guild.roles && message.guild.roles.cache
+		? message.guild.roles.cache.find(role => role.name === name)
+		: null;
 	if (mogirole != null && message.member != null)
 	{
-		return message.member.roles.has(message.guild.roles.find("name", name).id);
+		return message.member.roles.cache.has(mogirole.id);
 	}
 }
 
@@ -125,8 +136,39 @@ function timestamp()
 	return new Date().getTime();
 }
 
-client.on('ready', () => {
+async function sendWithAutoDelete(channel, content, deleteAfter)
+{
+	const message = await channel.send(content);
+	if (deleteAfter > 0)
+	{
+		setTimeout(() => {
+			message.delete().catch(error => { BrowserConsole.out(error); });
+		}, deleteAfter);
+	}
+
+	return message;
+}
+
+client.once('clientReady', async () => {
 	BrowserConsole.out(`Logged in as ${client.user.tag}!`);
+	try
+	{
+		const registeredGuilds = [];
+
+		await client.application.commands.set([]);
+
+		for (const guild of client.guilds.cache.values())
+		{
+			await guild.commands.set(slashCommandDefinitions);
+			registeredGuilds.push(guild.name || guild.id);
+		}
+
+		BrowserConsole.out(`Registered ${slashCommandDefinitions.length} slash command(s) in ${registeredGuilds.length} guild(s)`);
+	}
+	catch (error)
+	{
+		BrowserConsole.out(`Failed to register slash commands: ${error.message}`);
+	}
 });
 
 client.on('reconnecting', () => {
@@ -137,66 +179,46 @@ client.on('error', error => {
 	BrowserConsole.out("There was an error" + error.message);
 });
 
-client.on('message', message => {
-	if (message.author.bot) return;
+client.on('interactionCreate', async interaction => {
+	if (!interaction.isChatInputCommand()) return;
 
-	if (!mogichannel.has(message.channel))
+	const command = client.slashCommands.get(interaction.commandName);
+	if (!command) return;
+
+	try
 	{
-		mogichannel.set(message.channel, new Mogi());
+		await command.execute(interaction, {
+			client,
+			BrowserConsole,
+			getMogi: channel => {
+				if (!mogichannel.has(channel))
+				{
+					mogichannel.set(channel, new Mogi());
+				}
+
+				return mogichannel.get(channel);
+			},
+			mogichannel,
+			Mogi,
+			timestamp,
+			Player,
+			roomSizeHalf,
+			sendWithAutoDelete,
+			moginickname
+		});
 	}
-
-	var now = timestamp();
-	var mogi = mogichannel.get(message.channel);
-	if (mogi.isCollecting && mogi.players.size < config.room_size)
+	catch (error)
 	{
-		if (mogi.players.has(message.author.id))
+		console.error(error);
+		if (interaction.replied || interaction.deferred)
 		{
-			mogi.players.get(message.author.id).lastMessageDate = now;
-			if (mogi.notification.has(message.author.id))
-			{
-				mogi.notification.delete(message.author.id);
-			}
+			await interaction.followUp({ content: 'there was an error trying to execute that command!', ephemeral: true });
+		}
+		else
+		{
+			await interaction.reply({ content: 'there was an error trying to execute that command!', ephemeral: true });
 		}
 	}
-
-	if (!message.content.startsWith(config.prefix)) return;
-
-	const args = message.content.slice(config.prefix.length).trim().replace(/`/g, '').split(/ +/g);
-	const commandName = args.shift().toLowerCase();
-  const command = client.commands.get(commandName)
-    || client.commands.find(cmd => cmd.aliases && cmd.aliases.includes(commandName));
-  if (!command) return;
-  if (command.guildOnly && message.channel.type !== 'text') {
-    return message.reply('I can\'t execute that command inside DMs!');
-  }
-  if (command.args && !args.length) {
-    let reply = `You didn't provide any arguments, ${message.author}!`;
-    if (command.usage) {
-      reply += `\nThe proper usage would be: \`${config.prefix}${command.name} ${command.usage}\``;
-    }
-    return message.channel.send(reply);
-  }
-  if (!cooldowns.has(command.name)) {
-    cooldowns.set(command.name, new Discord.Collection());
-  }
-  const time = Date.now();
-  const timestamps = cooldowns.get(command.name);
-  const cooldownAmount = (command.cooldown || 0) * 1000;
-  if (timestamps.has(message.author.id)) {
-    const expirationTime = timestamps.get(message.author.id) + cooldownAmount;
-    if (time < expirationTime) {
-      return
-    }
-  }
-  timestamps.set(message.author.id, time);
-  setTimeout(() => timestamps.delete(message.author.id), cooldownAmount);
-  try {
-    command.execute(client, message, args, mogi, nickname, BrowserConsole, hasRole, now, Player, roomSizeHalf, moginickname, mogichannel, trim);
-  }
-  catch (error) {
-    console.error(error);
-    message.reply('there was an error trying to execute that command!');
-  }
 });
 
 process.on('unhandledRejection', error => { BrowserConsole.out(error); });
@@ -229,7 +251,7 @@ function cleanMogi()
 	{
 		if (mogi.isCollecting && mogi.players.size > 0 && mogi.players.size < config.room_size)
 		{
-			var playerslist = mogi.players.keyArray();
+			var playerslist = Array.from(mogi.players.keys());
 			for (var i = 0; i < playerslist.length; i++)
 			{
 				var player = mogi.players.get(playerslist[i]);
@@ -255,14 +277,14 @@ function cleanMogi()
 						mogi.notification.delete(player.id);
 						mogi.players.delete(player.id);
 
-						channel.send(moginickname(player.nickname, player.username) + " has been removed due to inactivity").then(msg => {msg.delete(config.normal_message_delete_rate)}).catch(error => { BrowserConsole.out(error); });
+						sendWithAutoDelete(channel, moginickname(player.nickname, player.username) + " has been removed due to inactivity", config.normal_message_delete_rate).catch(error => { BrowserConsole.out(error); });
 					}
 				}
 			}
 
 			var found = false;
 			var notification = '';
-			var notificationlist = mogi.notification.keyArray();
+			var notificationlist = Array.from(mogi.notification.keys());
 			for (var j = 0; j <notificationlist.length; j++)
 			{
 				var notice = mogi.notification.get(notificationlist[j]);
@@ -277,7 +299,7 @@ function cleanMogi()
 			if (found)
 			{
 				notification += ' please type something in the chat within 5 minutes to keep your spot in the mogi';
-				channel.send(notification).then(msg => {msg.delete(config.inactive_message_delete_rate)}).catch(error => { BrowserConsole.out(error); });
+				sendWithAutoDelete(channel, notification, config.inactive_message_delete_rate).catch(error => { BrowserConsole.out(error); });
 			}
 		}
 	});
