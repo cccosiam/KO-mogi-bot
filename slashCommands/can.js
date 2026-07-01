@@ -49,6 +49,8 @@ module.exports = {
 
 		await interaction.reply({ content: `${displayName} has joined the mogi -- ${mogi.players.size} players` });
 
+		const tagsRole = interaction.guild.roles.cache.get(context.client.config.tags_role_id);
+		const tagsMention = tagsRole ? `<@&${tagsRole.id}>` : '@Tags';	
 		// if (!isRoomNowFull && !mogi.hasPingedHere && mogi.startTime && context.timestamp() - mogi.startTime >= context.client.config.ping_here_after)
 		// {
 		// 	mogi.hasPingedHere = true;
@@ -57,14 +59,30 @@ module.exports = {
 
 		// if (!mogi.isRoomHalfFullSet && mogi.players.size === context.roomSizeHalf)
 		// {
-		// 	await interaction.channel.send(`@here +${context.client.config.room_size - context.roomSizeHalf}`);
+		// 	await interaction.channel.send(`@Tags +${context.client.config.room_size - context.roomSizeHalf}`);
 		// 	mogi.isRoomHalfFullSet = true;
 		// }
 		// else if (!mogi.isRoomAlmostFullSet && mogi.players.size === (context.client.config.room_size - 1))
 		// {
-		// 	await interaction.channel.send('@here +1');
+		// 	await interaction.channel.send('@Tags +1');
 		// 	mogi.isRoomAlmostFullSet = true;
 		// }
+		if (!mogi.isRoomHalfFullSet && mogi.players.size === context.roomSizeHalf)
+		{
+    		await interaction.channel.send({
+				content: `${tagsMention} +${context.client.config.room_size - context.roomSizeHalf}`,
+				allowedMentions: { roles: [context.client.config.tags_role_id] }
+			});
+			mogi.isRoomHalfFullSet = true;
+		}
+		else if (!mogi.isRoomAlmostFullSet && mogi.players.size === (context.client.config.room_size - 1))
+		{
+			await interaction.channel.send({
+				content: `${tagsMention} +1`,
+				allowedMentions: { roles: [context.client.config.tags_role_id] }
+			});
+			mogi.isRoomAlmostFullSet = true;
+}
 		if (shouldCreateThread)
 		{
 			mogi.notification.clear();

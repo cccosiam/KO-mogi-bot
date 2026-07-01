@@ -9,10 +9,10 @@ module.exports = {
 		const mogi = getMogi(interaction.channel, context.mogichannel, context.Mogi);
 		const displayName = getDisplayName(interaction);
 
-		if (!hasRole(interaction))
-		{
-			return interaction.reply({ content: `${displayName} does not have permission to start the mogi` });
-		}
+		// if (!hasRole(interaction))
+		// {
+		// 	return interaction.reply({ content: `${displayName} does not have permission to start the mogi` });
+		// }
 		if (mogi.isCollecting)
 		{
 			return interaction.reply({ content: `Mogi has ${mogi.players.size} players -- type /c, /d, /l` });

@@ -25,7 +25,7 @@ module.exports = {
 			return interaction.reply({ content: `${displayName} does not have permission to tag/notify -- ask an updater to tag the room` });
 		}
 
-		const notification = Array.from(mogi.players.keys()).slice(0, 12).map(playerId => `<@${playerId}>`).join(' ') + ' ' + interaction.options.getString('message', true);
+		const notification = Array.from(mogi.players.keys()).slice(0, 24).map(playerId => `<@${playerId}>`).join(' ') + ' ' + interaction.options.getString('message', true);
 		return interaction.reply({ content: notification });
 	}
 };

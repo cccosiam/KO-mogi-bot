@@ -1,5 +1,5 @@
 {
-	"token": "insert token here",
+	"token": "",
 	"prefix": "/",
 	"room_size": 24,
 	"max_room_size": 24,
@@ -12,5 +12,6 @@
 	"inactive_check_rate": 60000,
 	"minimum_uptime": 86400000,
 	"minimum_time_to_end_after_full": 5000,
-	"owner": "insert owner ID here"
+	"tags_role_id": "1521230646331183114",
+	"owner": ""
 }

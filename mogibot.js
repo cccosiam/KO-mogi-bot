@@ -179,6 +179,23 @@ client.on('error', error => {
 	BrowserConsole.out("There was an error" + error.message);
 });
 
+client.on('messageCreate', message => {
+    if (message.author.bot) return;
+
+    const mogi = mogichannel.get(message.channel);
+    if (!mogi || !mogi.isCollecting) return;
+
+    const player = mogi.players.get(message.author.id);
+    if (!player) return;
+
+    player.lastMessageDate = timestamp();
+
+    if (mogi.notification.has(player.id))
+    {
+        mogi.notification.delete(player.id);
+    }
+});
+
 client.on('interactionCreate', async interaction => {
 	if (!interaction.isChatInputCommand()) return;
 
@@ -212,11 +229,11 @@ client.on('interactionCreate', async interaction => {
 		console.error(error);
 		if (interaction.replied || interaction.deferred)
 		{
-			await interaction.followUp({ content: 'there was an error trying to execute that command!', ephemeral: true });
+			await interaction.followUp({ content: 'there was an error trying to execute that command!', flags: 64 });
 		}
 		else
 		{
-			await interaction.reply({ content: 'there was an error trying to execute that command!', ephemeral: true });
+			await interaction.reply({ content: 'there was an error trying to execute that command!', flags: 64 });
 		}
 	}
 });
@@ -239,13 +256,13 @@ function cleanMogi()
 	});
 
 	var uptime = now - boottime;
-	if (!hasMogi && uptime >= config.minimum_uptime)
-	{
-		uptime = uptime / 60000;
-		BrowserConsole.out("Rebooting because there are no active mogi with an uptime of " + uptime + " minutes");
-		process.exit();
-		return;
-	}
+	// if (!hasMogi && uptime >= config.minimum_uptime)
+	// {
+	// 	uptime = uptime / 60000;
+	// 	BrowserConsole.out("Rebooting because there are no active mogi with an uptime of " + uptime + " minutes");
+	// 	process.exit();
+	// 	return;
+	// }
 
 	mogichannel.forEach((mogi, channel, map) => 
 	{
